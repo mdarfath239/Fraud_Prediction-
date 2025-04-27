@@ -109,12 +109,10 @@ const Navbar = () => {
         <div className="md:hidden absolute top-full left-0 right-0 bg-white/95 backdrop-blur-md shadow-lg animate-slide-up border-t">
           <nav className="container mx-auto px-6 py-4 flex flex-col space-y-4">
             <NavLink
-              to="/"
-              className={({ isActive }) =>
-                `text-base font-medium py-2 transition-colors ${
-                  isActive ? "text-primary" : "text-foreground/80"
-                }`
-              }
+              to="/home"
+              className={`text-sm font-medium transition-colors hover:text-primary ${
+                location.pathname === "/home" ? "text-primary" : "text-foreground"
+              }`}
             >
               Home
             </NavLink>

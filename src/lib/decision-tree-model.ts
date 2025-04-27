@@ -42,122 +42,123 @@ interface DecisionTreeNode {
  * In a real application, this would be a model trained on historical transaction data.
  */
 const decisionTreeModel: DecisionTreeNode = {
-  // Root node - Check time first
   feature: 'time',
   threshold: 10800, // 3 AM
   details: ["Evaluating transaction time"],
   left: {
-    // Left branch - Suspicious time (night hours)
+    // Suspicious time (night hours)
     feature: 'amount',
     threshold: 5,
     details: ["Transaction during suspicious hours (before 3 AM)", "Evaluating transaction amount"],
     left: {
-      // Very small amount during suspicious hours
-      feature: 'V14',
-      threshold: 0,
-      details: ["Small transaction amount during suspicious hours", "Checking transaction pattern (V14)"],
-      left: {
-        // V14 negative
-        prediction: 'Fraud',
-        confidence: 0.92,
-        details: ["Small transaction during suspicious hours with negative V14 value"]
-      },
-      right: {
-        // V14 positive
-        feature: 'V12',
-        threshold: -2,
-        details: ["Small transaction during suspicious hours with positive V14 value", "Checking V12 value"],
-        left: {
-          prediction: 'Fraud',
-          confidence: 0.85,
-          details: ["Small transaction during suspicious hours with strongly negative V12 value"]
-        },
-        right: {
-          prediction: 'Not Fraud',
-          confidence: 0.75,
-          details: ["Small transaction during suspicious hours but normal V12 value"]
-        }
-      }
+      // Small amount during suspicious hours - Higher fraud risk
+      prediction: 'Fraud',
+      confidence: 0.95,
+      details: ["Small transaction amount during suspicious hours - High risk pattern"]
     },
     right: {
-      // Normal or large amount during suspicious hours
-      feature: 'amount',
-      threshold: 10000,
-      details: ["Transaction during suspicious hours", "Evaluating if amount is very large"],
+      feature: 'V17',
+      threshold: 2,
+      details: ["Large transaction during suspicious hours", "Checking V17 pattern"],
       left: {
-        // Normal amount during suspicious hours
         prediction: 'Not Fraud',
-        confidence: 0.82,
-        details: ["Normal transaction amount during suspicious hours"]
+        confidence: 0.85,
+        details: ["Normal V17 pattern despite suspicious hour"]
       },
       right: {
-        // Large amount during suspicious hours
-        feature: 'V17',
-        threshold: 1.5,
-        details: ["Large transaction during suspicious hours", "Checking transaction pattern (V17)"],
-        left: {
-          prediction: 'Not Fraud',
-          confidence: 0.68,
-          details: ["Large transaction during suspicious hours but normal V17 value"]
-        },
-        right: {
-          prediction: 'Fraud',
-          confidence: 0.88,
-          details: ["Large transaction during suspicious hours with abnormal V17 value"]
-        }
+        prediction: 'Fraud',
+        confidence: 0.92,
+        details: ["Abnormal V17 pattern during suspicious hours"]
       }
     }
   },
   right: {
-    // Right branch - Normal time
+    // Normal hours
     feature: 'amount',
-    threshold: 2,
-    details: ["Transaction during normal hours (after 3 AM)", "Evaluating if amount is very small"],
+    threshold: 10000,
+    details: ["Transaction during normal hours", "Checking amount"],
     left: {
-      // Very small amount during normal hours
-      feature: 'V17',
-      threshold: 0,
-      details: ["Very small transaction during normal hours", "Checking transaction pattern (V17)"],
-      left: {
-        prediction: 'Fraud',
-        confidence: 0.78,
-        details: ["Very small transaction with negative V17 value"]
-      },
-      right: {
-        prediction: 'Not Fraud',
-        confidence: 0.65,
-        details: ["Very small transaction with positive V17 value"]
-      }
+      // Normal amount during normal hours
+      prediction: 'Not Fraud',
+      confidence: 0.90,
+      details: ["Normal transaction pattern"]
     },
     right: {
-      // Normal or large amount during normal hours
-      feature: 'amount',
-      threshold: 15000,
-      details: ["Normal transaction time", "Evaluating if amount is extremely large"],
+      // Large amount - check V-values
+      feature: 'V14',
+      threshold: 1.5,
+      details: ["Large transaction amount", "Analyzing V14 pattern"],
       left: {
-        // Normal amount during normal hours
-        prediction: 'Not Fraud',
-        confidence: 0.95,
-        details: ["Normal transaction amount during regular hours"]
+        prediction: 'Fraud',
+        confidence: 0.88,
+        details: ["Suspicious V14 pattern with large amount"]
       },
       right: {
-        // Very large amount during normal hours
-        feature: 'V12',
-        threshold: 3,
-        details: ["Very large transaction amount", "Checking transaction pattern (V12)"],
-        left: {
-          prediction: 'Not Fraud',
-          confidence: 0.72,
-          details: ["Large transaction with normal V12 value"]
-        },
-        right: {
-          prediction: 'Fraud',
-          confidence: 0.82,
-          details: ["Large transaction with abnormal V12 value"]
-        }
+        prediction: 'Not Fraud',
+        confidence: 0.82,
+        details: ["Normal V14 pattern despite large amount"]
       }
     }
   }
+};
+
+/**
+ * Calculates a dynamic confidence score based on transaction features
+ * This simulates what predict_proba would do in a real ML model
+ */
+const calculateDynamicConfidence = (
+  baseConfidence: number,
+  prediction: 'Fraud' | 'Not Fraud',
+  data: TransactionData
+): number => {
+  // Start with the base confidence from the decision tree
+  let confidence = baseConfidence;
+  
+  // Adjust confidence based on how far the values are from decision boundaries
+  if (prediction === 'Fraud') {
+    // For fraud predictions, suspicious time periods increase confidence
+    if (data.time < 10800) { // Before 3 AM
+      const timeEffect = 0.05 * (1 - data.time / 10800);
+      confidence += timeEffect;
+    }
+    
+    // Very small or very large amounts increase fraud confidence
+    if (data.amount < 5 || data.amount > 10000) {
+      const amountEffect = data.amount < 5 ? 
+        0.07 * (1 - data.amount / 5) : 
+        0.05 * Math.min((data.amount - 10000) / 5000, 1);
+      confidence += amountEffect;
+    }
+    
+    // Extreme V values increase fraud confidence
+    const v17 = data.vValues[16] || 0;
+    const v14 = data.vValues[13] || 0;
+    if (Math.abs(v17) > 2 || Math.abs(v14) > 1.5) {
+      confidence += 0.03;
+    }
+  } else {
+    // For non-fraud predictions, normal time periods increase confidence
+    if (data.time >= 10800) {
+      confidence += 0.02;
+    }
+    
+    // Normal amounts increase non-fraud confidence
+    if (data.amount >= 5 && data.amount <= 10000) {
+      confidence += 0.03;
+    }
+    
+    // Normal V values increase non-fraud confidence
+    const v17 = data.vValues[16] || 0;
+    const v14 = data.vValues[13] || 0;
+    if (Math.abs(v17) <= 2 && Math.abs(v14) <= 1.5) {
+      confidence += 0.04;
+    }
+  }
+  
+  // Ensure confidence stays within reasonable bounds (0.5 to 0.99)
+  confidence = Math.max(0.5, Math.min(0.99, confidence));
+  
+  return confidence;
 };
 
 /**
@@ -174,9 +175,16 @@ const traverseDecisionTree = (
 } => {
   // If we've reached a leaf node, return the prediction
   if (node.prediction) {
+    // Calculate dynamic confidence instead of using fixed value
+    const dynamicConfidence = calculateDynamicConfidence(
+      node.confidence || 0.5,
+      node.prediction,
+      data
+    );
+    
     return {
       prediction: node.prediction,
-      confidence: node.confidence || 0.5,
+      confidence: dynamicConfidence,
       details: [...pathDetails, ...(node.details || [])]
     };
   }
@@ -240,7 +248,7 @@ export const predictFraudWithDecisionTree = (data: TransactionData): PredictionR
   
   return {
     prediction: result.prediction,
-    confidence: parseFloat((result.confidence * 100).toFixed(2)),
+    confidence: parseFloat((result.confidence * 100).toFixed(0)), // Round to whole number
     features: {
       time: data.time,
       amount: data.amount,

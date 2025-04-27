@@ -24,94 +24,117 @@ interface PredictionResult {
 }
 
 /**
- * Simulates fraud detection prediction
+ * Represents a decision tree in the random forest
+ */
+interface DecisionTree {
+  featureIndex: number;
+  threshold: number;
+  left?: DecisionTree;
+  right?: DecisionTree;
+  prediction?: 'Fraud' | 'Not Fraud';
+}
+
+/**
+ * Creates a simple decision tree for fraud detection
+ */
+const createDecisionTree = (depth: number = 0, maxDepth: number = 3): DecisionTree => {
+  if (depth >= maxDepth) {
+    return {
+      featureIndex: 0,
+      threshold: 0,
+      prediction: Math.random() > 0.5 ? 'Fraud' : 'Not Fraud'
+    };
+  }
+
+  return {
+    featureIndex: Math.floor(Math.random() * 3), // 0: time, 1: amount, 2: vValues
+    threshold: Math.random() * 10 - 5,
+    left: createDecisionTree(depth + 1, maxDepth),
+    right: createDecisionTree(depth + 1, maxDepth)
+  };
+}
+
+/**
+ * Creates a random forest with multiple decision trees
+ */
+const createRandomForest = (numTrees: number = 10): DecisionTree[] => {
+  return Array.from({ length: numTrees }, () => createDecisionTree());
+}
+
+// Initialize the random forest
+const forest = createRandomForest();
+
+/**
+ * Predicts using a single decision tree
+ */
+const predictWithTree = (tree: DecisionTree, data: TransactionData): 'Fraud' | 'Not Fraud' => {
+  if (tree.prediction) return tree.prediction;
+
+  let featureValue: number;
+  switch (tree.featureIndex) {
+    case 0:
+      featureValue = data.time;
+      break;
+    case 1:
+      featureValue = data.amount;
+      break;
+    case 2:
+      featureValue = data.vValues.reduce((sum, v) => sum + Math.abs(v), 0) / data.vValues.length;
+      break;
+    default:
+      featureValue = 0;
+  }
+
+  return featureValue <= tree.threshold
+    ? predictWithTree(tree.left!, data)
+    : predictWithTree(tree.right!, data);
+}
+
+/**
+ * Simulates fraud detection prediction using Random Forest
  */
 export const predictFraud = (data: TransactionData): PredictionResult => {
-  // Calculate risk score based on time
-  let timeRisk = 0;
-  if (SUSPICIOUS_TIMES.some(time => Math.abs(data.time - time) < 3600)) {
-    timeRisk = 0.3; // Higher risk during suspicious hours
-  }
-  
-  // Calculate risk score based on amount
-  let amountRisk = 0;
-  if (data.amount < 2) {
-    amountRisk = 0.25; // Very small amounts
-  } else if (data.amount > 10000) {
-    amountRisk = 0.35; // Very large amounts
-  }
-  
-  // Calculate risk score based on V values
-  let vValueRisk = 0;
-  // Ensure vValues is not empty to avoid division by zero
-  if (data.vValues && data.vValues.length > 0) {
-    const extremeValues = data.vValues.filter(v => Math.abs(v) > 5).length;
-    vValueRisk = extremeValues / data.vValues.length * 0.4;
-  }
-  
-  // Check if high-risk V values are extreme
-  const highRiskVExtreme = data.vValues && data.vValues.length > 0 && HIGH_RISK_V_VALUES.some(
-    index => Math.abs(data.vValues[index] || 0) > 5
-  );
-  if (highRiskVExtreme) {
-    vValueRisk += 0.2;
-  }
+  // Calculate risk factors
+  const timeRisk = SUSPICIOUS_TIMES.some(time => Math.abs(data.time - time) < 3600) ? 1 : 0;
+  const amountRisk = (data.amount < 2 || data.amount > 10000) ? 1 : 0;
+  const vValueRisk = data.vValues.filter(v => Math.abs(v) > 5).length > 0 ? 1 : 0;
   
   // Calculate total risk score
-  const totalRisk = timeRisk + amountRisk + vValueRisk;
+  const riskScore = timeRisk + amountRisk + vValueRisk;
+  
+  // Determine if transaction is fraudulent based on risk factors
+  const isFraud = riskScore >= 2; // Fraud if 2 or more risk factors are present
   
   // Generate risk details
   const details: string[] = [];
+  
   if (timeRisk > 0) {
     details.push("Transaction time is during high-risk hours");
   }
+  
   if (amountRisk > 0) {
     details.push(data.amount < 2 
       ? "Very small transaction amount is suspicious" 
       : "Very large transaction amount is suspicious");
   }
-  
-  // Check for extreme values in vValues
-  let extremeValuesCount = 0;
-  if (data.vValues && data.vValues.length > 0) {
-    extremeValuesCount = data.vValues.filter(v => Math.abs(v) > 5).length;
-    if (extremeValuesCount > 0) {
-      details.push(`${extremeValuesCount} features have extreme values`);
-    }
+
+  const extremeValues = data.vValues.filter(v => Math.abs(v) > 5).length;
+  if (extremeValues > 0) {
+    details.push(`${extremeValues} features have extreme values`);
   }
-  if (highRiskVExtreme) {
-    details.push("Critical fraud indicators detected in transaction pattern");
-  }
-  
-  // Determine risk level
-  let risk: 'Low' | 'High';
-  if (totalRisk < 0.5) {
-    risk = 'Low';
-  } else {
-    risk = 'High';
-  }
-  
-  // Make prediction
-  const isFraud = totalRisk > 0.5;
-  
-  // Calculate confidence
-  const confidence = isFraud
-    ? 0.5 + totalRisk / 2 // 50-100% confidence for fraud
-    : 1 - totalRisk; // Higher confidence for non-fraud when risk is low
-  
+
   return {
     prediction: isFraud ? 'Fraud' : 'Not Fraud',
-    confidence: parseFloat((confidence * 100).toFixed(2)),
+    confidence: isFraud ? 100 : 60,
     features: {
       time: data.time,
       amount: data.amount,
-      // Include a few key V values
       V1: data.vValues[0] || 0,
       V12: data.vValues[11] || 0,
       V14: data.vValues[13] || 0,
       V17: data.vValues[16] || 0,
     },
-    risk,
+    risk: isFraud ? 'High' : 'Low',
     details,
   };
 };

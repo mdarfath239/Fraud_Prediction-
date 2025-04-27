@@ -135,15 +135,7 @@ const FraudDetector = () => {
       <div className="pt-24 pb-8 md:pt-28">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto">
-            <div className="flex items-center mb-6">
-              <Link
-                to="/"
-                className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <span className="i-lucide-arrow-left mr-1 h-4 w-4" />
-                Back to Home
-              </Link>
-            </div>
+         
             
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">
               Fraud Detection System
@@ -163,7 +155,7 @@ const FraudDetector = () => {
                   onClick={() => setSelectedModel('standard')}
                   className={`px-4 py-2 text-sm rounded-md flex items-center ${selectedModel === 'standard' ? 'bg-primary text-white' : 'bg-secondary hover:bg-secondary/80'}`}
                 >
-                  Standard Model
+                  Random Forest
                 </button>
                 <button
                   onClick={() => setSelectedModel('decision-tree')}

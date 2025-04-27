@@ -1,39 +1,35 @@
-
 import { useState } from "react";
-import { useNavigate, Link, useLocation } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Eye, EyeOff, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/contexts/AuthContext";
 
-const Login = () => {
+const Register = () => {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
   const { toast } = useToast();
-  const { login, isLoading } = useAuth();
-
-  // Get the page user was trying to access before being redirected to login
-  const from = location.state?.from?.pathname || "/detector";
+  const { register, isLoading } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const success = await login(email, password);
+    const success = await register(email, password, name);
     
     if (success) {
       toast({
-        title: "Login successful",
-        description: "Welcome back to TransactionGuard",
+        title: "Registration successful",
+        description: "Welcome to TransactionGuard",
       });
-      navigate(from, { replace: true });
+      navigate("/detector");
     } else {
       toast({
         variant: "destructive",
-        title: "Login failed",
-        description: "Please check your credentials and try again.",
+        title: "Registration failed",
+        description: "There was an error creating your account.",
       });
     }
   };
@@ -46,13 +42,31 @@ const Login = () => {
             <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-primary/10 mb-4">
               <Shield className="h-6 w-6 text-primary" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Create an account</h1>
             <p className="text-muted-foreground mt-2">
-              Sign in to your TransactionGuard account
+              Sign up for TransactionGuard
             </p>
           </div>
           
           <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <label 
+                htmlFor="name" 
+                className="text-sm font-medium"
+              >
+                Full Name
+              </label>
+              <input
+                id="name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                placeholder="John Doe"
+                required
+              />
+            </div>
+            
             <div className="space-y-2">
               <label 
                 htmlFor="email" 
@@ -72,14 +86,12 @@ const Login = () => {
             </div>
             
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label 
-                  htmlFor="password" 
-                  className="text-sm font-medium"
-                >
-                  Password
-                </label>
-              </div>
+              <label 
+                htmlFor="password" 
+                className="text-sm font-medium"
+              >
+                Password
+              </label>
               <div className="relative">
                 <input
                   id="password"
@@ -109,15 +121,15 @@ const Login = () => {
               disabled={isLoading}
               className="w-full py-2 px-4 bg-primary text-white rounded-md font-medium transition-all hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              {isLoading ? "Signing in..." : "Sign in"}
+              {isLoading ? "Creating account..." : "Create account"}
             </button>
           </form>
           
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
-              Don't have an account?{" "}
-              <Link to="/register" className="text-primary hover:underline">
-                Sign up
+              Already have an account?{" "}
+              <Link to="/login" className="text-primary hover:underline">
+                Sign in
               </Link>
             </p>
           </div>
@@ -129,4 +141,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Register;
